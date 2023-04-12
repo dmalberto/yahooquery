@@ -945,9 +945,7 @@ class _YahooFinance(object):
     def country(self, country):
         if country.lower() not in COUNTRIES:
             raise ValueError(
-                "{} is not a valid country.  Valid countries include {}".format(
-                    country, ", ".join(COUNTRIES.keys())
-                )
+                f'{country} is not a valid country.  Valid countries include {", ".join(COUNTRIES.keys())}'
             )
         self._country = country.lower()
         self._default_query_params = COUNTRIES[self._country]
@@ -1057,13 +1055,11 @@ class _YahooFinance(object):
                 else:
                     obj[k] = self._format_data(v, dates)
             elif isinstance(v, list):
-                if len(v) == 0:
+                if len(v) == 0 or not isinstance(v[0], dict):
                     obj[k] = v
-                elif isinstance(v[0], dict):
+                else:
                     for i, list_item in enumerate(v):
                         obj[k][i] = self._format_data(list_item, dates)
-                else:
-                    obj[k] = v
             else:
                 obj[k] = v
         return obj
@@ -1074,11 +1070,11 @@ class _YahooFinance(object):
         urls = self._construct_urls(config, params, **kwargs)
         response_field = config["response_field"]
         try:
-            if isinstance(self.session, FuturesSession):
-                data = self._async_requests(response_field, urls, params, **kwargs)
-            else:
-                data = self._sync_requests(response_field, urls, params, **kwargs)
-            return data
+            return (
+                self._async_requests(response_field, urls, params, **kwargs)
+                if isinstance(self.session, FuturesSession)
+                else self._sync_requests(response_field, urls, params, **kwargs)
+            )
         except ValueError:
             return {"error": "HTTP 404 Not Found.  Please try again"}
 
@@ -1123,7 +1119,7 @@ class _YahooFinance(object):
     def _construct_urls(self, config, params, **kwargs):
         """Construct URL requests"""
         if kwargs.get("method") == "post":
-            urls = [
+            return [
                 self.session.post(
                     url=config["path"], params=params, json=kwargs.get("payload")
                 )
@@ -1134,23 +1130,22 @@ class _YahooFinance(object):
                 if isinstance(self.session, FuturesSession)
                 else tqdm(params, disable=not self.progress)
             )
-            urls = [self.session.get(url=config["path"], params=p) for p in ls]
+            return [self.session.get(url=config["path"], params=p) for p in ls]
         elif "symbols" in config["query"]:
             params.update({"symbols": ",".join(self._symbols)})
-            urls = [self.session.get(url=config["path"], params=params)]
+            return [self.session.get(url=config["path"], params=params)]
         else:
             ls = (
                 self._symbols
                 if isinstance(self.session, FuturesSession)
                 else tqdm(self._symbols, disable=not self.progress)
             )
-            urls = [
+            return [
                 self.session.get(
                     url=config["path"].format(**{"symbol": symbol}), params=params
                 )
                 for symbol in ls
             ]
-        return urls
 
     def _async_requests(self, response_field, urls, params, **kwargs):
         data = {}
@@ -1184,9 +1179,7 @@ class _YahooFinance(object):
             if response[response_field]["error"]:
                 error = response[response_field]["error"]
                 return error.get("description")
-            if not response[response_field]["result"]:
-                return "No data found"
-            return response
+            return response if response[response_field]["result"] else "No data found"
         except KeyError:
             if "finance" in response:
                 if response["finance"].get("error"):

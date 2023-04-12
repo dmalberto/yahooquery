@@ -97,7 +97,7 @@ class Ticker(_YahooFinance):
         kwargs = {}
         params = {"modules": ",".join(modules)}
         if len(modules) == 1:
-            kwargs.update({"addl_key": modules[0]})
+            kwargs["addl_key"] = modules[0]
         data = self._get_data(key="quoteSummary", params=params, **kwargs)
         dates = _flatten_list(
             [self._MODULES_DICT[module]["convert_dates"] for module in modules]
@@ -108,41 +108,40 @@ class Ticker(_YahooFinance):
         data = self._quote_summary([module])
         if not kwargs.get("data_filter"):
             data_filter = self._MODULES_DICT[module]["filter"]
-            kwargs.update({"data_filter": data_filter})
+            kwargs["data_filter"] = data_filter
         return self._to_dataframe(data, **kwargs)
 
     def _to_dataframe(self, data, **kwargs):
-        if not self.formatted:
-            dataframes = []
-            try:
-                for symbol in self.symbols:
-                    final_data = (
-                        data[symbol][kwargs.get("data_filter")]
-                        if kwargs.get("data_filter")
-                        else data[symbol]
+        if self.formatted:
+            return data
+        dataframes = []
+        try:
+            for symbol in self.symbols:
+                final_data = (
+                    data[symbol][kwargs.get("data_filter")]
+                    if kwargs.get("data_filter")
+                    else data[symbol]
+                )
+                if kwargs.get("from_dict"):
+                    df = pd.DataFrame(
+                        [(k, v) for d in final_data for k, v in d.items()]
                     )
-                    if kwargs.get("from_dict"):
-                        df = pd.DataFrame(
-                            [(k, v) for d in final_data for k, v in d.items()]
-                        )
-                        df.set_index(0, inplace=True)
-                        df.columns = [symbol]
-                    else:
-                        df = pd.DataFrame(final_data)
-                    dataframes.append(df)
-                if kwargs.get("from_dict", False):
-                    df = pd.concat(dataframes, axis=1)
+                    df.set_index(0, inplace=True)
+                    df.columns = [symbol]
                 else:
-                    df = pd.concat(
-                        dataframes,
-                        keys=self.symbols,
-                        names=["symbol", "row"],
-                        sort=False,
-                    )
-                return df
-            except TypeError:
-                return data
-        else:
+                    df = pd.DataFrame(final_data)
+                dataframes.append(df)
+            if kwargs.get("from_dict", False):
+                df = pd.concat(dataframes, axis=1)
+            else:
+                df = pd.concat(
+                    dataframes,
+                    keys=self.symbols,
+                    names=["symbol", "row"],
+                    sort=False,
+                )
+            return df
+        except TypeError:
             return data
 
     @property
@@ -496,11 +495,11 @@ class Ticker(_YahooFinance):
         key = "fundamentals_premium" if premium else "fundamentals"
         types = types or self._CONFIG[key]["query"]["type"]["options"][financials_type]
         if trailing:
-            prefixed_types = ["{}{}".format(prefix, t) for t in types] + [
-                "trailing{}".format(t) for t in types
+            prefixed_types = [f"{prefix}{t}" for t in types] + [
+                f"trailing{t}" for t in types
             ]
         else:
-            prefixed_types = ["{}{}".format(prefix, t) for t in types]
+            prefixed_types = [f"{prefix}{t}" for t in types]
         data = self._get_data(
             key, {"type": ",".join(prefixed_types)}, **{"list_result": True}
         )
@@ -539,9 +538,7 @@ class Ticker(_YahooFinance):
                 df.set_index(["symbol", "date"], inplace=True)
                 return df
         except ValueError:
-            return "{} data unavailable for {}".format(
-                financials_type.replace("_", " ").title(), ", ".join(self._symbols)
-            )
+            return f'{financials_type.replace("_", " ").title()} data unavailable for {", ".join(self._symbols)}'
 
     def _financials_dataframes(self, data, period_type):
         data_type = data["meta"]["type"][0]
@@ -1231,9 +1228,7 @@ class Ticker(_YahooFinance):
         else:
             params = {"range": period.lower()}
         if interval not in intervals:
-            raise ValueError(
-                "Interval values must be one of {}".format(", ".join(intervals))
-            )
+            raise ValueError(f'Interval values must be one of {", ".join(intervals)}')
         params["interval"] = interval.lower()
         if params["interval"] == "1m" and period == "1mo":
             df = self._history_1m(adj_timezone, adj_ohlc)
@@ -1246,7 +1241,7 @@ class Ticker(_YahooFinance):
 
     def _history_1m(self, adj_timezone=True, adj_ohlc=False):
         params = {"interval": "1m"}
-        today = datetime.today()
+        today = datetime.now()
         dates = [
             _convert_to_timestamp((today - timedelta(7 * x)).date()) for x in range(5)
         ]
@@ -1264,12 +1259,12 @@ class Ticker(_YahooFinance):
         return df
 
     def _historical_data_to_dataframe(self, data, params, adj_timezone):
-        d = {}
-        for symbol in self._symbols:
-            if "timestamp" in data[symbol]:
-                d[symbol] = _history_dataframe(data, symbol, params, adj_timezone)
-            else:
-                d[symbol] = data[symbol]
+        d = {
+            symbol: _history_dataframe(data, symbol, params, adj_timezone)
+            if "timestamp" in data[symbol]
+            else data[symbol]
+            for symbol in self._symbols
+        }
         if all(isinstance(d[key], pd.DataFrame) for key in d):
             df = pd.concat(d, names=["symbol", "date"], sort=False)
             if "dividends" in df.columns:

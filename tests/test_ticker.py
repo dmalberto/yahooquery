@@ -110,9 +110,7 @@ def test_modules(ticker, module):
     assert getattr(ticker, module) is not None
 
 
-@pytest.mark.parametrize(
-    "module, frequency", [el for el in itertools.product(FINANCIALS, ["q", "a"])]
-)
+@pytest.mark.parametrize("module, frequency", list(itertools.product(FINANCIALS, ["q", "a"])))
 def test_financials(ticker, frequency, module):
     assert getattr(ticker, module)(frequency) is not None
 
@@ -136,35 +134,21 @@ def test_p_get_financial_data(ticker):
     )
 
 
-@pytest.mark.parametrize(
-    "period, interval",
-    [
-        (p, i)
-        for p, i in zip(
+@pytest.mark.parametrize("period, interval", list(zip(
             ["1d", "1mo", "1y", "5y", "max"], ["1m", "1m", "1d", "1wk", "3mo"]
-        )
-    ],
-)
+        )))
 def test_history(ticker, period, interval):
     assert ticker.history(period, interval) is not None
 
 
-@pytest.mark.parametrize(
-    "start, end",
-    [
-        (start, end)
-        for start, end in zip(
+@pytest.mark.parametrize("start, end", list(zip(
             [datetime(2019, 1, 1), "2019-01-01"], ["2019-12-30", datetime(2019, 12, 30)]
-        )
-    ],
-)
+        )))
 def test_history_start_end(ticker, start, end):
     assert ticker.history(start=start, end=end) is not None
 
 
-@pytest.mark.parametrize(
-    "period, interval", [(p, i) for p, i in zip(["2d", "1mo"], ["1m", "3m"])]
-)
+@pytest.mark.parametrize("period, interval", list(zip(["2d", "1mo"], ["1m", "3m"])))
 def test_history_bad_args(ticker, period, interval):
     with pytest.raises(ValueError):
         assert ticker.history(period, interval)
