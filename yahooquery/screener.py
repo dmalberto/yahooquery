@@ -18,18 +18,17 @@ class Screener(_YahooFinance):
         #     self._symbols = _convert_to_list(kwargs.get('symbols'))
 
     def _construct_params(self, config, params):
-        new_params = {}
         optional_params = [
             k
             for k in config["query"]
             if not config["query"][k]["required"]
             and config["query"][k]["default"] is not None
         ]
-        for optional in optional_params:
-            new_params.update(
-                {optional: params.get(optional, config["query"][optional]["default"])}
-            )
-        new_params.update(self._default_query_params)
+        new_params = {
+            optional: params.get(optional, config["query"][optional]["default"])
+            for optional in optional_params
+        }
+        new_params |= self._default_query_params
         new_params = {
             k: str(v).lower() if v is True or v is False else v
             for k, v in new_params.items()
@@ -42,8 +41,7 @@ class Screener(_YahooFinance):
     def _get_symbol(self, response, params, **kwargs):
         query_params = dict(parse.parse_qsl(parse.urlsplit(response.url).query))
         screener_id = query_params["scrIds"]
-        key = next((k for k in SCREENERS if SCREENERS[k]["id"] == screener_id))
-        return key
+        return next((k for k in SCREENERS if SCREENERS[k]["id"] == screener_id))
 
     def _check_screen_ids(self, screen_ids):
         all_screeners = list(SCREENERS.keys())

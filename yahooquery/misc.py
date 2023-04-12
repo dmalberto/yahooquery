@@ -20,9 +20,7 @@ def _make_request(
             params.update(COUNTRIES[country])
         except KeyError:
             raise KeyError(
-                "{} is not a valid option.  Valid options include {}".format(
-                    country, ", ".join(sorted(COUNTRIES.keys()))
-                )
+                f'{country} is not a valid option.  Valid options include {", ".join(sorted(COUNTRIES.keys()))}'
             )
     session = _init_session(**kwargs)
     r = getattr(session, method)(url, params=params, json=data)
@@ -66,7 +64,7 @@ def search(
 
 def get_currencies():
     """Get a list of currencies"""
-    url = "{}/v1/finance/currencies".format(BASE_URL)
+    url = f"{BASE_URL}/v1/finance/currencies"
     return _make_request(url, response_field="currencies", country="United States")
 
 
@@ -90,7 +88,7 @@ def get_market_summary(country="United States"):
     -------
 
     """
-    url = "{}/v6/finance/quote/marketSummary".format(BASE_URL)
+    url = f"{BASE_URL}/v6/finance/quote/marketSummary"
     return _make_request(url, response_field="marketSummaryResponse", country=country)
 
 
@@ -107,11 +105,9 @@ def get_trending(country="United States"):
         region = COUNTRIES[country.lower()]["region"]
     except KeyError:
         raise KeyError(
-            "{} is not a valid option.  Valid options include {}".format(
-                country, ", ".join(COUNTRIES.keys())
-            )
+            f'{country} is not a valid option.  Valid options include {", ".join(COUNTRIES.keys())}'
         )
-    url = "{}/v1/finance/trending/{}".format(BASE_URL, region)
+    url = f"{BASE_URL}/v1/finance/trending/{region}"
     return _make_request(url, response_field="finance", country=country)[0]
 
 
